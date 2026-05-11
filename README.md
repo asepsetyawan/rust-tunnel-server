@@ -4,7 +4,7 @@
 [![localtunnel-client](https://img.shields.io/crates/v/localtunnel-client.svg)](https://crates.io/crates/localtunnel-client)
 [![localtunnel-server](https://img.shields.io/crates/v/localtunnel-server.svg)](https://crates.io/crates/localtunnel-server)
 
-Localtunnel exposes your localhost endpoint to the world, user cases are:
+Localtunnel exposes your localhost endpoint to the world. Use cases are:
 - API testing
 - multiple devices access to single data store
 - peer to peer connection, workaround for NAT hole punching.

@@ -1,0 +1,28 @@
+services:
+  localtunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: yourdockerhubuser/localtunnel:latest
+    command:
+      - server
+      - --domain
+      - ${LT_DOMAIN}
+      - --port
+      - "3000"
+      - --proxy-port
+      - "3001"
+      - --max-sockets
+      - "10"
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+    env_file:
+      - .env
+    restart: unless-stopped
+
+# Dokploy: set LT_DOMAIN (dan lainnya) di tab Environment → .env
+# Opsional di command: --secure , --require-auth (+ env Cloudflare)
+# Mode image-only: hapus `build:` di atas, isi `image:` ke Hub Anda.

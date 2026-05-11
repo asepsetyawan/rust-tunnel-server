@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::error::ServerError;
-use crate::CONFIG;
+use crate::env_config;
 
 #[async_trait]
 pub trait Auth {
@@ -21,19 +21,20 @@ pub struct CfWorkerStore;
 #[async_trait]
 impl Auth for CfWorkerStore {
     async fn credential_is_valid(&self, credential: &str, value: &str) -> Result<bool> {
-        let account = CONFIG
+        let cfg = env_config();
+        let account = cfg
             .cloudflare_account
             .clone()
             .ok_or(ServerError::InvalidConfig)?;
-        let namespace = CONFIG
+        let namespace = cfg
             .cloudflare_namespace
             .clone()
             .ok_or(ServerError::InvalidConfig)?;
-        let email = CONFIG
+        let email = cfg
             .cloudflare_auth_email
             .clone()
             .ok_or(ServerError::InvalidConfig)?;
-        let key = CONFIG
+        let key = cfg
             .cloudflare_auth_key
             .clone()
             .ok_or(ServerError::InvalidConfig)?;

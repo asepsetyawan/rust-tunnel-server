@@ -2,15 +2,12 @@
 //! request a proxy endpoint at `domain.tld/<your-endpoint>`,
 //! user's request then proxied via `<your-endpoint>.domain.tld`.
 
-#[macro_use]
-extern crate lazy_static;
-
+use std::sync::OnceLock;
 use std::time::Duration;
 use std::{net::SocketAddr, sync::Arc};
 
 use actix_web::{web, App, HttpServer};
 use anyhow::Result;
-use dotenv::dotenv;
 use hyper::{server::conn::http1, service::service_fn};
 use tokio::{net::TcpListener, sync::Mutex, time::timeout};
 
@@ -29,11 +26,13 @@ mod state;
 /// The interval between cleanup checks
 const CLEANUP_CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
-lazy_static! {
-    static ref CONFIG: Config = {
-        dotenv().ok();
+static ENV_CONFIG: OnceLock<Config> = OnceLock::new();
+
+pub(crate) fn env_config() -> &'static Config {
+    ENV_CONFIG.get_or_init(|| {
+        dotenvy::dotenv().ok();
         envy::from_env::<Config>().unwrap_or_default()
-    };
+    })
 }
 
 pub struct ServerConfig {
