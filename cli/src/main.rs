@@ -56,6 +56,12 @@ enum Command {
         proxy_port: u16,
         #[clap(long)]
         require_auth: bool,
+        /// Lower bound (inclusive) for tunnel-client TCP listener ports; use with `--client-port-max`.
+        #[clap(long)]
+        client_port_min: Option<u16>,
+        /// Upper bound (inclusive); must be >= `--client-port-min`.
+        #[clap(long)]
+        client_port_max: Option<u16>,
     },
 }
 
@@ -98,6 +104,8 @@ async fn main() -> Result<()> {
             max_sockets,
             proxy_port,
             require_auth,
+            client_port_min,
+            client_port_max,
         } => {
             let config = ServerConfig {
                 domain,
@@ -106,6 +114,8 @@ async fn main() -> Result<()> {
                 max_sockets,
                 proxy_port,
                 require_auth,
+                client_connect_port_min: client_port_min,
+                client_connect_port_max: client_port_max,
             };
             start(config).await?;
         }

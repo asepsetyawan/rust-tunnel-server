@@ -1,6 +1,9 @@
 use std::{
     collections::HashMap,
     io,
+    io::ErrorKind,
+    net::SocketAddr,
+    ops::RangeInclusive,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -36,14 +39,17 @@ pub struct ClientManager {
     pub clients: HashMap<String, Arc<Mutex<Client>>>,
     pub _tunnels: u16,
     pub default_max_sockets: u8,
+    /// When set, each tunnel listener binds to the first free port in this range.
+    pub client_port_range: Option<RangeInclusive<u16>>,
 }
 
 impl ClientManager {
-    pub fn new(max_sockets: u8) -> Self {
+    pub fn new(max_sockets: u8, client_port_range: Option<RangeInclusive<u16>>) -> Self {
         ClientManager {
             clients: HashMap::new(),
             _tunnels: 0,
             default_max_sockets: max_sockets,
+            client_port_range,
         }
     }
 
@@ -52,7 +58,7 @@ impl ClientManager {
         self.clients.insert(url, client.clone());
 
         let mut client = client.lock().await;
-        client.listen().await
+        client.listen(self.client_port_range.clone()).await
     }
 
     /// clean up old unused clients
@@ -93,8 +99,11 @@ impl Client {
         }
     }
 
-    pub async fn listen(&mut self) -> io::Result<u16> {
-        let listener = TcpListener::bind("0.0.0.0:0").await?;
+    pub async fn listen(
+        &mut self,
+        client_port_range: Option<RangeInclusive<u16>>,
+    ) -> io::Result<u16> {
+        let listener = bind_tunnel_listener(client_port_range).await?;
         let port = listener.local_addr()?.port();
         self.port = Some(port);
 
@@ -199,6 +208,28 @@ impl Drop for Client {
     }
 }
 
+async fn bind_tunnel_listener(
+    client_port_range: Option<RangeInclusive<u16>>,
+) -> io::Result<TcpListener> {
+    match client_port_range {
+        None => TcpListener::bind("0.0.0.0:0").await,
+        Some(range) => {
+            for port in range {
+                let addr = SocketAddr::from(([0, 0, 0, 0], port));
+                match TcpListener::bind(addr).await {
+                    Ok(listener) => return Ok(listener),
+                    Err(e) if e.kind() == ErrorKind::AddrInUse => continue,
+                    Err(e) => return Err(e),
+                }
+            }
+            Err(io::Error::new(
+                ErrorKind::AddrNotAvailable,
+                "no free port in client_connect_port range",
+            ))
+        }
+    }
+}
+
 async fn socket_is_writable(socket: &TcpStream) -> bool {
     socket
         .ready(Interest::WRITABLE)
@@ -206,4 +237,15 @@ async fn socket_is_writable(socket: &TcpStream) -> bool {
         // `is_write_closed` is set to `true` when keepalive times out
         .map(|ready| !ready.is_write_closed())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod bind_tests {
+    use super::bind_tunnel_listener;
+
+    #[tokio::test]
+    async fn ephemeral_bind_succeeds() {
+        let listener = bind_tunnel_listener(None).await.unwrap();
+        assert_ne!(listener.local_addr().unwrap().port(), 0);
+    }
 }

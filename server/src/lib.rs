@@ -42,6 +42,11 @@ pub struct ServerConfig {
     pub max_sockets: u8,
     pub proxy_port: u16,
     pub require_auth: bool,
+    /// When both are `Some`, tunnel clients connect to a port in this inclusive range
+    /// (easier to expose through firewalls / Docker than ephemeral `0.0.0.0:0`).
+    /// When either is `None`, use ephemeral ports (legacy behaviour).
+    pub client_connect_port_min: Option<u16>,
+    pub client_connect_port_max: Option<u16>,
 }
 
 /// Start the proxy use low level api from hyper.
@@ -54,7 +59,23 @@ pub async fn start(config: ServerConfig) -> Result<()> {
         max_sockets,
         proxy_port,
         require_auth,
+        client_connect_port_min,
+        client_connect_port_max,
     } = config;
+
+    let client_port_range = match (client_connect_port_min, client_connect_port_max) {
+        (None, None) => None,
+        (Some(min), Some(max)) if min <= max => Some(min..=max),
+        (Some(min), Some(max)) => {
+            anyhow::bail!(
+                "client_connect_port_min ({min}) must be <= client_connect_port_max ({max})"
+            )
+        }
+        _ => anyhow::bail!(
+            "set both client_connect_port_min and client_connect_port_max, or neither (ephemeral ports)"
+        ),
+    };
+
     log::info!("Api server listens at {} {}", &domain, api_port);
     log::info!(
         "Start proxy server at {} {}, options: {} {}, require auth: {}",
@@ -64,8 +85,12 @@ pub async fn start(config: ServerConfig) -> Result<()> {
         max_sockets,
         require_auth
     );
+    match &client_port_range {
+        Some(r) => log::info!("Tunnel client TCP listeners use port range {r:?} (inclusive)"),
+        None => log::info!("Tunnel client TCP listeners use ephemeral ports (OS-assigned)"),
+    }
 
-    let manager = Arc::new(Mutex::new(ClientManager::new(max_sockets)));
+    let manager = Arc::new(Mutex::new(ClientManager::new(max_sockets, client_port_range)));
     let api_state = web::Data::new(State {
         manager: manager.clone(),
         max_sockets,

@@ -28,6 +28,9 @@ export CLOUDFLARE_AUTH_EMAIL=xxx
 export CLOUDFLARE_AUTH_KEY=xxx
 
 localtunnel server --domain proxy.your-domain.com --port 3000 --proxy-port 3001 --secure --require-auth
+
+# Optional: tunnel clients use TCP ports in this range on the server (open in firewall / Docker).
+# localtunnel server ... --client-port-min 20000 --client-port-max 30000
 ```
 
 *Known issues:*
@@ -61,6 +64,8 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 ```
+
+To pin tunnel-client listener ports, append e.g. `--client-port-min 20000 --client-port-max 30000` to `ExecStart` and open that TCP range in the firewall.
 
 Start the service,
 

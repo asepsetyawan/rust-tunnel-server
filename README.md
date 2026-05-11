@@ -53,6 +53,10 @@ Use in CLI:
 
 ```shell
 localtunnel server --domain your-domain.com --port 3000 --proxy-port 3001 --secure
+
+# Optional: bind tunnel-client TCP listeners in a fixed range (omit both for ephemeral ports).
+localtunnel server --domain your-domain.com --port 3000 --proxy-port 3001 \
+  --client-port-min 20000 --client-port-max 30000
 ```
 
 Use as a Rust library,
@@ -71,6 +75,9 @@ let config = ServerConfig {
     max_sockets: 10,
     proxy_port: 3001,
     require_auth: false,
+    // Optional: tunnel clients connect on ports in this range (else OS ephemeral ports).
+    client_connect_port_min: Some(20_000),
+    client_connect_port_max: Some(30_000),
 };
 
 start(config).await?

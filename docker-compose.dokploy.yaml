@@ -24,5 +24,6 @@ services:
     restart: unless-stopped
 
 # Dokploy: set LT_DOMAIN (dan lainnya) di tab Environment → .env
-# Opsional di command: --secure , --require-auth (+ env Cloudflare)
+# Opsional: --client-port-min / --client-port-max (sama rentang di firewall + publish ports).
+# Opsional: --secure , --require-auth (+ env Cloudflare)
 # Mode image-only: hapus `build:` di atas, isi `image:` ke Hub Anda.
